@@ -13,7 +13,6 @@ A simple, user-friendly application designed to send messages to multiple Telegr
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
-- [Contact](#contact)
 
 ## Features
 
@@ -97,7 +96,4 @@ Contributions are welcome! Please follow these steps:
 
 Ensure your code adheres to PEP 8 standards and includes relevant tests.
 
-## Contact
-
-For questions or support, feel free to open an issue on the [GitHub repository](https://github.com/user/repo/issues) or contact the maintainer at [email@example.com](mailto:email@example.com).
 ```
