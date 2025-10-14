@@ -1,40 +1,15 @@
-# ----------------------------------------------------------------------
-# 1. Virtual Environment (අථත්‍ය පරිසරය)
-# ----------------------------------------------------------------------
-# .venv folder එකේ සියලුම අන්තර්ගතය ignore කරන්න
 .venv/
-# .env file (සැකසුම් තොරතුරු) ignore කරන්න
 .env
 
-# ----------------------------------------------------------------------
-# 2. Python-Generated Files (Python මඟින් හැදෙන files)
-# ----------------------------------------------------------------------
-# Compiled Python files
 __pycache__/
-# *.pyc extensions සහිත සියලුම files ignore කරන්න
 *.pyc
 
-# ----------------------------------------------------------------------
-# 3. PyInstaller / Build Output Files (Build කිරීමේදී හැදෙන files)
-# ----------------------------------------------------------------------
-# PyInstaller build folder එක
 build/
-# PyInstaller output distribution folder එක
 dist/
-# PyInstaller spec file එක (අවශ්‍ය නම් තබාගත හැක, නමුත් සාමාන්‍යයෙන් ignore කරයි)
 *.spec
 
-# ----------------------------------------------------------------------
-# 4. IDE / Editor Files (VS Code, Sublime Text වැනි Editor වල files)
-# ----------------------------------------------------------------------
-# Visual Studio Code settings/cache folder එක (ඔබ VS Code භාවිතා කරන්නේ නම්)
 .vscode/
 
-# ----------------------------------------------------------------------
-# 5. Application Specific Files (ඔබේ software එකට අදාළ files)
-# ----------------------------------------------------------------------
-# ඔබගේ Telegram session files
 group_sender_session_*.session
 group_sender_session_*.session-journal
-# ඔබගේ account data
 accounts.json
