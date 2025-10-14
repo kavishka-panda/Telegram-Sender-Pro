@@ -11,6 +11,11 @@ class App(ctk.CTk):
 
         self.title("Telegram Group Sender")
         self.geometry("400x450")
+        
+        try:
+            self.iconbitmap("app_icon.ico")
+        except:
+            pass
 
         self.groups_data = []
         self.delay_var = ctk.StringVar(value="60")
