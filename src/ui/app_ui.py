@@ -18,6 +18,7 @@ class App(ctk.CTk):
             pass
 
         self.groups_data = []
+        self.selected_groups = []
         self.delay_var = ctk.StringVar(value="60")
         self.phone_number = None
         self.accounts = load_accounts()
@@ -221,6 +222,7 @@ class App(ctk.CTk):
             widget.destroy()
         
         self.sent_count = 0
+        self.selected_groups = [] # Reset selected groups on UI reload
         
         self.main_ui_frame = ctk.CTkFrame(self)
         self.main_ui_frame.pack(fill="both", expand=True)
@@ -236,8 +238,13 @@ class App(ctk.CTk):
         self.info_frame.grid(row=2, column=0, padx=20, pady=(10, 10), sticky="ew")
         self.info_frame.grid_columnconfigure((0, 1), weight=1)
         
-        self.groups_info = ctk.CTkLabel(self.info_frame, text="Groups: Loading...")
+        # --- NEW: Make groups_info clickable to re-select ---
+        self.groups_info = ctk.CTkLabel(self.info_frame, text="Groups: Loading...", text_color="#1F6AA5", cursor="hand2")
         self.groups_info.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        
+        # Bind the click event to the label
+        self.groups_info.bind("<Button-1>", lambda e: self.show_group_selection_ui() if self.groups_data else None) 
+        # ---------------------------------------------------
         
         self.sent_count_label = ctk.CTkLabel(self.info_frame, text=f"Sent: {self.sent_count}")
         self.sent_count_label.grid(row=0, column=1, padx=10, pady=10, sticky="e")
@@ -285,6 +292,7 @@ class App(ctk.CTk):
 
     def load_groups(self):
         self.groups_info.configure(text="Groups: Fetching...")
+        self.send_button.configure(state="disabled") # Disable button while loading
         self.log_to_textbox("Connecting to Telegram and fetching groups...")
         executor.submit(run_async, self.telegram_service.get_groups()).add_done_callback(self._groups_loaded_callback)
 
@@ -294,11 +302,85 @@ class App(ctk.CTk):
             count = len(self.groups_data)
             self.groups_info.configure(text=f"Groups Found: {count}")
             self.log_to_textbox(f"Successfully loaded {count} groups.")
+            
+            # --- NEW: Show Group Selection UI after loading ---
+            self.after(0, self.show_group_selection_ui) 
+            
         except Exception as e:
             self.groups_info.configure(text="Groups: Error!")
             self.log_to_textbox(f"Connection Error: {e}")
         finally:
-            self.send_button.configure(state="normal")
+            # We enable the button only after groups are selected/managed
+            pass
+        
+
+    def show_group_selection_ui(self):
+        # Create a new top-level window for group selection
+        self.group_select_window = ctk.CTkToplevel(self)
+        self.group_select_window.title(f"Select Groups ({len(self.groups_data)} total)")
+        self.group_select_window.geometry("500x600")
+        self.group_select_window.grab_set() # Focus on this window
+        
+        ctk.CTkLabel(self.group_select_window, text="Select Target Groups", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(15, 5))
+        
+        self.group_vars = {} # Dictionary to hold checkbox variables (title: ctk.BooleanVar)
+        
+        # Frame to hold the scrollable list of groups
+        self.group_list_frame = ctk.CTkScrollableFrame(self.group_select_window, label_text="Available Groups")
+        self.group_list_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        # Populate the list with checkboxes
+        for entity, title in self.groups_data:
+            var = ctk.BooleanVar(value=True) # Default to selected (you can change this)
+            self.group_vars[title] = var
+            
+            # Use Checkbox to allow selection/deselection
+            checkbox = ctk.CTkCheckBox(self.group_list_frame, text=title, variable=var, 
+                                       onvalue=True, offvalue=False)
+            checkbox.pack(anchor="w", padx=10, pady=2)
+
+        # Buttons frame
+        button_frame = ctk.CTkFrame(self.group_select_window, fg_color="transparent")
+        button_frame.pack(fill="x", padx=20, pady=(0, 20))
+        button_frame.grid_columnconfigure((0, 1), weight=1)
+
+        ctk.CTkButton(button_frame, text="Select All", command=self.select_all_groups).grid(row=0, column=0, padx=5, sticky="ew")
+        ctk.CTkButton(button_frame, text="Deselect All", command=self.deselect_all_groups).grid(row=0, column=1, padx=5, sticky="ew")
+
+        ctk.CTkButton(self.group_select_window, text="Save Selection & Continue", command=self.save_group_selection).pack(pady=(0, 15))
+
+
+    def select_all_groups(self):
+        for var in self.group_vars.values():
+            var.set(True)
+
+    def deselect_all_groups(self):
+        for var in self.group_vars.values():
+            var.set(False)
+
+    def save_group_selection(self):
+        self.selected_groups = []
+        
+        # Iterate through the original groups_data and check if the title's checkbox is selected
+        for entity, title in self.groups_data:
+            if self.group_vars.get(title) and self.group_vars[title].get():
+                self.selected_groups.append((entity, title))
+        
+        count = len(self.selected_groups)
+        
+        if count == 0:
+            self.log_to_textbox("⚠️ Warning: No groups were selected. Please select at least one.")
+            # Optionally keep the window open if no groups are selected
+            return
+
+        self.groups_info.configure(text=f"Groups Selected: {count} / {len(self.groups_data)}")
+        self.log_to_textbox(f"✅ Successfully selected {count} groups for sending.")
+        self.send_button.configure(state="normal") # Enable sending button
+        
+        self.group_select_window.destroy()
+        
+        # Clean up vars to save memory/prevent issues
+        self.group_vars = {}
 
     def start_sending(self):
         message = self.msg_textbox.get("1.0", "end-1c").strip()
@@ -308,8 +390,9 @@ class App(ctk.CTk):
             self.log_to_textbox("❌ Error: Invalid delay value. Please use a number.")
             return
 
-        if not self.groups_data:
-            self.log_to_textbox("❌ Error: No groups loaded. Check connection.")
+        # --- IMPORTANT CHANGE: Use self.selected_groups instead of self.groups_data ---
+        if not self.selected_groups: 
+            self.log_to_textbox("❌ Error: No groups selected. Please use the 'Groups Found' link to select.")
             return
         
         if not message:
@@ -321,14 +404,15 @@ class App(ctk.CTk):
 
         self.send_button.configure(state="disabled", text="Sending...")
         self.stop_button.configure(state="normal")
-        self.log_to_textbox(f"\n--- Starting sending process (Delay: {delay}s) ---")
+        self.log_to_textbox(f"\n--- Starting sending process (Delay: {delay}s) to {len(self.selected_groups)} groups ---")
         
         log_cb = lambda msg: self.after(0, self.log_to_textbox, msg)
         prog_cb = lambda: self.after(0, self.increment_sent_count)
 
         executor.submit(
             run_async,
-            self.telegram_service.send_message_to_groups(message, delay, self.groups_data, log_cb, prog_cb)
+            # --- Pass self.selected_groups ---
+            self.telegram_service.send_message_to_groups(message, delay, self.selected_groups, log_cb, prog_cb) 
         ).add_done_callback(self._sending_finished_callback)
 
     def stop_sending(self):
